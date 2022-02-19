@@ -2,6 +2,7 @@
 #include <map>
 #include <vector>
 #include <set>
+#include <iostream>
 
 void Game::Update(float dt)
 {
@@ -37,7 +38,12 @@ void Game::Playing(float dt)
 	PlayerControls();
 	CalculateDropRateNormal(dt);
 	DropPiece(dt);
-	LocatePiece();
+
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && releasedSpacebar)
+	{
+		state = GameState::PAUSED;
+		releasedSpacebar = false;
+	}
 }
 
 void Game::Paused()
@@ -65,19 +71,42 @@ void Game::Won()
 
 void Game::ResetGame()
 {
+	Block freshBlock;
+	for (int y = 0; y < BOARD_Y; y++)
+	{
+		for (int x = 0; x < BOARD_X; x++)
+		{
+			board[x][y] = freshBlock;
+		}
+	}
+	state = GameState::PLAYING;
+
+	dropRate_normal = 1.0f;
+	dropRate_accel = 0.02f;
+	dropRate_current = dropRate_normal;
+
+	timer_dropRate = 0.f;
+	timer_dropPiece = 0.f;
+
+	releasedSpacebar = true;
+	releasedRight = true;
+	releasedLeft = true;
+	releasedUp = true;
+
+	NewPiece();
 }
 
-void Game::LocatePiece()
+void Game::LocatePiece(int rotation)
 {
 	int it = 0;
-	for (int x = 0; x < currentPiece->layout[0].EXTENTS[0]; x++)
+	for (int x = 0; x < currentPiece->layout[0].EXTENT; x++)
 	{
-		for (int y = currentPiece->layout[0].EXTENTS[1] - 1; y >= 0; y--)
+		for (int y = 0; y < currentPiece->layout[0].EXTENT; y++)
 		{
-			if (currentPiece->layout[currentPiece->currentLayout].layout[x][y])
+			if (currentPiece->layout[rotation].layout[x][y])
 			{
 				Coord boardCoord = ConvertLocalToWorld(x, y);
-				currentPiece->blockLocations[it] = boardCoord;
+				currentPiece->targetBlockLocations[it] = boardCoord;
 				it++;
 			}
 		}
@@ -86,25 +115,25 @@ void Game::LocatePiece()
 
 void Game::PlayerControls()
 {
-	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS && CanPieceMoveHorizontal(true) && releasedRight)
+	
+	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS && releasedRight)
 	{
 		releasedRight = false;
-		currentPiece->pos += {1, 0};
+		MovePiece({ 1,0 }, currentPiece->currentLayout);
 	}
-	
-	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS && CanPieceMoveHorizontal(false) && releasedLeft)
+
+	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS && releasedLeft)
 	{
 		releasedLeft = false;
-		currentPiece->pos += {-1, 0};
+		MovePiece({ -1,0 }, currentPiece->currentLayout);
 	}
-	
-	// NEED TO CHECK IF ROTATION IS VALID
+
 	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS && releasedUp)
 	{
 		releasedUp = false;
-		currentPiece->Rotate();
+		RotatePiece();
 	}
-		
+
 	dropRate_current = glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS ? dropRate_accel : dropRate_normal;
 }
 
@@ -120,6 +149,7 @@ void Game::CalculateDropRateNormal(float dt)
 	}
 }
 
+
 void Game::DropPiece(float dt)
 {
 	timer_dropPiece += dt;
@@ -127,11 +157,8 @@ void Game::DropPiece(float dt)
 	if (timer_dropPiece > dropRate_current)
 	{
 		timer_dropPiece = 0;
-		if (CanPieceMoveDown())
-		{
-			currentPiece->pos += {0, -1};
-		}
-		else
+
+		if (!MovePiece({ 0, -1 }, currentPiece->currentLayout))
 			PieceHitFloor();
 	}
 }
@@ -140,8 +167,7 @@ void Game::PieceHitFloor()
 {
 	for (Coord coord : currentPiece->blockLocations)
 	{
-		board[coord.x][coord.y].free = false;
-		board[coord.x][coord.y].colour = currentPiece->block.colour;
+		board[coord.x][coord.y] = currentPiece->block;
 	}
 
 	LineCheck();
@@ -155,72 +181,57 @@ void Game::NewPiece()
 	currentPiece = &tetrominos[rnd];
 	currentPiece->Spawn();
 
-	currentPiece->pos += {BOARD_X / 2, BOARD_Y};
-	LocatePiece();
+	if (!MovePiece({ BOARD_X / 2, BOARD_Y - 1 }, currentPiece->currentLayout))
+		state = GameState::LOST;
 }
 
-bool Game::CanPieceMoveDown()
+bool Game::MovePiece(Coord offset, int rotation)
 {
-	std::map<int, int> m;
-	for (Coord coord : currentPiece->blockLocations)
+	currentPiece->targetPos = currentPiece->pos + offset;
+	LocatePiece(rotation);
+
+	bool canMove = true;
+	for (Coord coord : currentPiece->targetBlockLocations)
 	{
-		if (m.contains(coord.x))
+		if (!board[coord.x][coord.y].free || coord.x < 0 || coord.x >= BOARD_X ||  coord.y < 0 || coord.y >= BOARD_Y)
 		{
-			if (m[coord.x] > coord.y)
-				m[coord.x] = coord.y;
+			canMove = false;
+			return canMove;
 		}
-		else
-			m[coord.x] = coord.y;
 	}
 
-	for (const auto& [key, value] : m)
+	if (canMove)
 	{
-		if (!board[key][value - 1].free || value - 1 < 0)
-			return false;
+		currentPiece->pos = currentPiece->targetPos;
+		currentPiece->currentLayout = rotation;
+		for (int i = 0; i < currentPiece->NUM_OF_BLOCKS; i++)
+		{
+			currentPiece->blockLocations[i] = currentPiece->targetBlockLocations[i];
+		}
 	}
 
-	return true;
+	return canMove;
 }
 
-bool Game::CanPieceMoveHorizontal(bool right)
+void Game::RotatePiece()
 {
-	std::map<int, int> m;
-	for (Coord coord : currentPiece->blockLocations)
+	Coord offset = { 0,0 };
+
+	const int MAX_NUM_OF_ROTATION_ATTEMPTS = 4;
+	int attempts = 0;
+	while (!MovePiece(offset, (currentPiece->currentLayout + 1) % currentPiece->NUM_OF_LAYOUTS) && attempts < MAX_NUM_OF_ROTATION_ATTEMPTS)
 	{
-		if (right)
+		for (Coord coord : currentPiece->targetBlockLocations)
 		{
-			if (m.contains(coord.y))
+			if (!board[coord.x][coord.y].free || coord.x < 0 || coord.x >= BOARD_X || coord.y < 0 || coord.y >= BOARD_Y)
 			{
-				if (m[coord.y] < coord.x)
-					m[coord.y] = coord.x;
+				offset += (currentPiece->targetPos - coord);
+				break;
 			}
-			else
-				m[coord.y] = coord.x;
 		}
-		else
-		{
-			if (m.contains(coord.y))
-			{
-				if (m[coord.y] > coord.x)
-					m[coord.y] = coord.x;
-			}
-			else
-				m[coord.y] = coord.x;
-		}
+
+		attempts++;
 	}
-
-	for (const auto& [key, value] : m)
-	{
-		if (!board[value + right ? 1 : -1][key].free)
-			return false;
-
-		if (right && value + 1 >= BOARD_X)
-			return false;
-		else if (!right && value - 1 < 0)
-			return false;
-	}
-
-	return true;
 }
 
 Coord Game::ConvertLocalToWorld(int localX, int localY)
@@ -230,7 +241,7 @@ Coord Game::ConvertLocalToWorld(int localX, int localY)
 	localCoord.x = localX - 2;
 	localCoord.y = localY - 2;
 
-	return localCoord + currentPiece->pos;
+	return localCoord + currentPiece->targetPos;
 }
 
 void Game::LineCheck()
@@ -291,7 +302,7 @@ void Game::ClearLine(int y)
 {
 	for (int x = 0; x < BOARD_X; x++)
 	{
-		board[x][y].colour = { 0,0,0,0 };
+		board[x][y].colour = { 0,0,0,1.f };
 		board[x][y].free = true;
 	}
 }

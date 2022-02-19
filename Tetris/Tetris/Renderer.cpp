@@ -1707,8 +1707,9 @@ void Renderer::DrawFrame()
 	{
 		for (int y = 0; y < game->BOARD_Y; y++)
 		{
+
 			MeshPushConstants constants;
-			constants.pos = { x, y - 20, 0 };
+			constants.pos = { x -1, y - 20, 0 };
 			constants.colour = game->board[x][y].colour;
 			vkCmdPushConstants(cmd, pipelineLayout_block, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
 
@@ -1724,10 +1725,10 @@ void Renderer::DrawFrame()
 		int x = coord.x;
 		int y = coord.y;
 
-		//std::cout << "x = " << x << ", y = " << y << std::endl
+		//std::cout << "x = " << x << ", y = " << y << std::endl;
 
 		MeshPushConstants constants;
-		constants.pos = { x, y - 20, 0.5f };
+		constants.pos = { x -1, y - 20, 0.5f };
 		constants.colour = currentPiece->block.colour;
 		vkCmdPushConstants(cmd, pipelineLayout_block, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
 

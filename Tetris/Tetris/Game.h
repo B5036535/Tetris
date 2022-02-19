@@ -10,21 +10,7 @@ public:
 	Game(GLFWwindow* w, const uint32_t width, const uint32_t height) : renderer(w, this, width, height)
 	{
 		window = w;
-		state = GameState::PLAYING;
-
-		dropRate_normal		= 0.1f;
-		dropRate_accel		= 0.01f;
-		dropRate_current	= dropRate_normal;
-
-		timer_dropRate	= 0.f;
-		timer_dropPiece = 0.f;
-
-		releasedSpacebar	= true;
-		releasedRight		= true;
-		releasedLeft		= true;
-		releasedUp			= true;
-
-		NewPiece();
+		ResetGame();
 	}
 
 	~Game()
@@ -35,7 +21,7 @@ public:
 	enum GameState { PLAYING, PAUSED, LOST, WON };
 
 	const static int BOARD_X = 10;
-	const static int BOARD_Y = 40;
+	const static int BOARD_Y = 51;
 
 	GameState GetState() { return state; }
 
@@ -68,7 +54,7 @@ private:
 	float timer_dropPiece;
 
 	float timer_dropRate;
-	const float rate_dropRate = 60.f;
+	const float rate_dropRate = 30.f;
 
 	bool releasedSpacebar;
 	bool releasedRight;
@@ -82,7 +68,7 @@ private:
 
 	void ResetGame();
 
-	void LocatePiece();
+	void LocatePiece(int rotation);
 	
 	void PlayerControls();
 
@@ -91,9 +77,12 @@ private:
 	void PieceHitFloor();
 	void NewPiece();
 
-	bool CanPieceMoveDown();
-	bool CanPieceMoveHorizontal(bool right);
-	
+	//bool CanPieceMoveDown();
+	//bool CanPieceMoveHorizontal(bool right);
+
+	bool MovePiece(Coord offset, int layout);
+	void RotatePiece();
+
 	void LineCheck();
 	void DeleteLine(int y, int offset);
 	void ClearLine(int y);

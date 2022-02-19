@@ -9,6 +9,12 @@ struct Coord
 		this->x = 0;
 		this->y = 0;
 	}
+
+	Coord(const Coord& other)
+	{
+		x = other.x;
+		y = other.y;
+	}
 	Coord(int x, int y)
 	{
 		this->x = x;
@@ -51,36 +57,79 @@ struct Block
 	Block()
 	{
 		free = true;
-		colour = { 0.f,0.f,0.f,0.f };
+		colour = { 0.f,0.f,0.f,1.f };
+	}
+
+	Block(const Block& other)
+	{
+		free = other.free;
+		colour = other.colour;
 	}
 	bool free;
 	glm::vec4 colour;
 };
 
+//struct TLayout
+//{
+//	TLayout()
+//	{
+//		for (int x = 0; x < EXTENTS[0]; x++)
+//		{
+//			for (int y = 0; y < EXTENTS[1]; y++)
+//			{
+//				layout[x][y] = false;
+//			}
+//		}
+//	}
+//
+//	bool layout[4][4];
+//
+//	bool &operator()(int x, int y)
+//	{
+//		if ((x >= EXTENTS[0] / 2 || x < -(EXTENTS[0] / 2)) || (y >= EXTENTS[1] / 2 || y < -(EXTENTS[1] / 2)))
+//			std::runtime_error("attempting to access out of bounds");
+//		else
+//			return layout[x + (EXTENTS[0] / 2)][y + (EXTENTS[1] / 2)];
+//	}
+//
+//	const int EXTENTS[2] = { 4,4 };
+//private:
+//};
+
 struct TLayout
 {
 	TLayout()
 	{
-		for (int x = 0; x < EXTENTS[0]; x++)
+		for (int x = 0; x < EXTENT; x++)
 		{
-			for (int y = 0; y < EXTENTS[1]; y++)
+			for (int y = 0; y < EXTENT; y++)
 			{
 				layout[x][y] = false;
 			}
 		}
 	}
 
-	bool layout[4][4];
-
-	bool &operator()(int x, int y)
+	TLayout(const TLayout& other)
 	{
-		if ((x >= EXTENTS[0] / 2 || x < -(EXTENTS[0] / 2)) || (y >= EXTENTS[1] / 2 || y < -(EXTENTS[1] / 2)))
-			std::runtime_error("attempting to access out of bounds");
-		else
-			return layout[x + (EXTENTS[0] / 2)][y + (EXTENTS[1] / 2)];
+		for (int x = 0; x < EXTENT; x++)
+		{
+			for (int y = 0; y < EXTENT; y++)
+			{
+				layout[x][y] = other.layout[x][y];
+			}
+		}
 	}
 
-	const int EXTENTS[2] = { 4,4 };
+	bool& operator()(int x, int y)
+	{
+		if ((x > EXTENT / 2 || x < -(EXTENT / 2)) || (y > EXTENT / 2 || y < -(EXTENT / 2)))
+			std::runtime_error("attempting to access out of bounds");
+		else
+			return layout[x + (EXTENT / 2)][y + (EXTENT / 2)];
+	}
+
+	const static int EXTENT = 5;
+	bool layout[EXTENT][EXTENT];
 private:
 };
 
@@ -119,6 +168,7 @@ public:
 			break;
 		}
 
+		if(type != TetrominoType::Square)
 		for(int i = 0; i < NUM_OF_LAYOUTS - 1; i++)
 			CalcRotation(layout[i], layout[i + 1]);
 
@@ -133,11 +183,15 @@ public:
 	Block block;
 
 	const static int NUM_OF_LAYOUTS = 4;
+	const static int NUM_OF_BLOCKS = 4;
 	TLayout layout[NUM_OF_LAYOUTS];
 	int currentLayout;
 
 	Coord pos;
 	Coord blockLocations[4];
+
+	Coord targetPos;
+	Coord targetBlockLocations[4];
 
 	void Rotate();
 	void Spawn();

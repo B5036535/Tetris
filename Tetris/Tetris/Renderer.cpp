@@ -1701,8 +1701,6 @@ void Renderer::DrawFrame()
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline_block);
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout_block, 0, 1, &descriptorSets_block[imageIndex], 0, nullptr);
 
-	//INSERT COMMANDS
-
 	for (int x = 0; x < game->BOARD_X; x++)
 	{
 		for (int y = 0; y < game->BOARD_Y; y++)
@@ -1717,15 +1715,12 @@ void Renderer::DrawFrame()
 		}		
 	}
 
-	//std::cout << "----------------- CURRENT PIECE -----------------" << std::endl;
 
 	Tetromino* currentPiece = game->currentPiece;
 	for(Coord coord : currentPiece->blockLocations)
 	{	
 		int x = coord.x;
 		int y = coord.y;
-
-		//std::cout << "x = " << x << ", y = " << y << std::endl;
 
 		MeshPushConstants constants;
 		constants.pos = { x -1, y - 20, 0.5f };

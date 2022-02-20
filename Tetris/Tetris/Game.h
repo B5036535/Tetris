@@ -77,9 +77,6 @@ private:
 	void PieceHitFloor();
 	void NewPiece();
 
-	//bool CanPieceMoveDown();
-	//bool CanPieceMoveHorizontal(bool right);
-
 	bool MovePiece(Coord offset, int layout);
 	void RotatePiece();
 
